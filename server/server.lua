@@ -105,20 +105,16 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
     local isRare = rewardchance > (100 - Config.RareItemChance)
     local moneyAmount = 0
     local itemName = ''
+    local newoutlawstatus = ClampOutlawStatus(outlawstatus + 1)
     
     if isRare and #Config.RareRewardItems > 0 then
         itemName = Config.RareRewardItems[math.random(#Config.RareRewardItems)]
         Player.Functions.AddItem(itemName, 1)
         TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[itemName], 'add', 1)
-        TriggerEvent('rsg-log:server:CreateLog', 'looting', locale('sv_lang_1'), 'green', firstname..' '..lastname..' ('..citizenid..locale('sv_lang_2')..RSGCore.Shared.Items[itemName].label)
         
         -- money reward during looting
         if Config.EnableRareMoneyReward then
-            if Config.RareRandomMoneyReward then
-                moneyAmount = math.random(Config.RareMinMoneyReward, Config.RareMaxMoneyReward)
-            else
-                moneyAmount = Config.RareMoneyReward
-            end
+            moneyAmount = math.random(Config.RareMinMoneyReward, Config.RareMaxMoneyReward)
             Player.Functions.AddMoney(Config.MoneyReward, moneyAmount)
         end
         
@@ -133,7 +129,7 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
                     { name = "Citizen ID", value = citizenid, inline = true },
                     { name = "Item", value = RSGCore.Shared.Items[itemName].label, inline = true },
                     { name = "Money Reward", value = "$"..moneyAmount..(" ("..Config.MoneyReward..")"), inline = true },
-                    { name = "Outlaw Status", value = newoutlawstatus.."/%s"..(Config.MaxOutlawStatus), inline = true },
+                    { name = "Outlaw Status", value = newoutlawstatus.."/"..Config.MaxOutlawStatus, inline = true },
                 }
             )
         end
@@ -142,15 +138,10 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
         itemName = Config.CommonRewardItems[math.random(#Config.CommonRewardItems)]
         Player.Functions.AddItem(itemName, 1)
         TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[itemName], 'add', 1)
-        TriggerEvent('rsg-log:server:CreateLog', 'looting', locale('sv_lang_3'), 'green', firstname..' '..lastname..' ('..citizenid..locale('sv_lang_2')..RSGCore.Shared.Items[itemName].label)
         
         -- money reward during looting
         if Config.EnableCommonMoneyReward then
-            if Config.CommonRandomMoneyReward then
-                moneyAmount = math.random(Config.CommonMinMoneyReward, Config.CommonMaxMoneyReward)
-            else
-                moneyAmount = Config.CommonMoneyReward
-            end
+            moneyAmount = math.random(Config.CommonMinMoneyReward, Config.CommonMaxMoneyReward)
             Player.Functions.AddMoney(Config.MoneyReward, moneyAmount)
         end
         
@@ -165,14 +156,13 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
                     { name = "Citizen ID", value = citizenid, inline = true },
                     { name = "Item", value = RSGCore.Shared.Items[itemName].label, inline = true },
                     { name = "Money Reward", value = "$"..moneyAmount..(" ("..Config.MoneyReward..")"), inline = true },
-                    { name = "Outlaw Status", value = newoutlawstatus.."/%s"..(Config.MaxOutlawStatus), inline = true },
+                    { name = "Outlaw Status", value = newoutlawstatus.."/"..Config.MaxOutlawStatus, inline = true },
                 }
             )
         end
     end
     
     -- Update outlaw status with bounds checking
-    local newoutlawstatus = ClampOutlawStatus(outlawstatus + 1)
     MySQL.update('UPDATE players SET outlawstatus = ? WHERE citizenid = ?', { newoutlawstatus, citizenid })
     
     -- Discord log for high outlaw status
@@ -184,7 +174,7 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
             {
                 { name = "Player", value = firstname.." "..lastname, inline = true },
                 { name = "Citizen ID", value = citizenid, inline = true },
-                { name = "Outlaw Status", value = newoutlawstatus.."/%s"..(Config.MaxOutlawStatus), inline = true },
+                { name = "Outlaw Status", value = newoutlawstatus.."/"..Config.MaxOutlawStatus, inline = true },
                 { name = "Threshold", value = Config.HighOutlawThreshold, inline = true },
             }
         )
