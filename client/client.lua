@@ -20,23 +20,23 @@ CreateThread(function()
                         eventDataStruct:SetInt32(0, 0)
                         eventDataStruct:SetInt32(8, 0)
                         eventDataStruct:SetInt32(16, 0)
-                        local is_data_exists = Citizen.InvokeNative(0x57EC5FA4D4D6AFCA, 0, i, eventDataStruct:Buffer(),
-                            eventDataSize)
+                        local is_data_exists = Citizen.InvokeNative(0x57EC5FA4D4D6AFCA, 0, i, eventDataStruct:Buffer(), eventDataSize)
                         if is_data_exists then -- can contiue
                             if PlayerPedId() == eventDataStruct:GetInt32(0) then
                                 local type = GetPedType(entity)
                                 if type == 4 then
                                     if Citizen.InvokeNative(0x8DE41E9902E85756, entity) then -- press prompt
-                                        if Config.LawAlertActive then
-                                            local random = math.random(100)
-                                            if random <= Config.LawAlertChance then
-                                                local coords = GetEntityCoords(cache.ped)
-                                                TriggerEvent('rsg-lawman:client:lawmanAlert', coords, locale('cl_lang_1'))
+                                        RSGCore.Functions.TriggerCallback('hud:server:getoutlawstatus', function(result)
+                                            if Config.LawAlertActive then
+                                                local random = math.random(100)
+                                                if random <= Config.LawAlertChance then
+                                                    local coords = GetEntityCoords(cache.ped)
+                                                    TriggerEvent('rsg-lawman:client:lawmanAlert', coords, locale('cl_lang_1'))
+                                                end
                                             end
-                                        end
-                                        -- Send NPC network ID to server for validation
-                                        local npcNetId = NetworkGetNetworkIdFromEntity(entity)
-                                        TriggerServerEvent('rex-lootnpc:server:givereward', npcNetId)
+                                            outlawstatus = result[1].outlawstatus
+                                            TriggerServerEvent('rex-lootnpc:server:givereward', outlawstatus)
+                                        end)
                                     end
                                 end
                             end

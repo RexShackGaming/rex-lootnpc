@@ -34,11 +34,4 @@ files {
   'locales/*.json'
 }
 
-escrow_ignore {
-    'installation/*',
-    'locales/*',
-    'shared/*',
-    'README.md'
-}
-
 lua54 'yes'

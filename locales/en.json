@@ -2,9 +2,5 @@
     "cl_lang_1" : "Outlaw Looting!",
     "sv_lang_1" : "Rare Item Looted",
     "sv_lang_2" : ") looted a ",
-    "sv_lang_3" : "Common Item Looted",
-    "sv_error_no_rewards" : "[rex-lootnpc] ERROR: No reward items configured!",
-    "notify_rare_loot" : "Rare Loot",
-    "notify_common_loot" : "Common Loot",
-    "notify_looted" : "Looted: %s (x1)%s"
+    "sv_lang_3" : "Common Item Looted"
 }
