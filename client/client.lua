@@ -6,7 +6,7 @@ lib.locale()
 ----------------------------
 CreateThread(function()
     while true do
-      Wait(0)
+      Wait(1000) -- Changed from 0 to reduce performance impact
       SetPedResetFlag(cache.ped, 310, false)
     end
 end)
@@ -43,7 +43,7 @@ CreateThread(function()
             local outlawstatus = exports['rsg-hud']:GetOutlawStatus()
             if outlawstatus == nil then return end
             if outlawstatus > 0 then
-                TriggerServerEvent('rex-lootnpc:server:reduceoutlawstaus', outlawstatus)
+                TriggerServerEvent('rex-lootnpc:server:reduceoutlawstaus') -- Removed client-controlled parameter
             end
         end
         Wait(sleep)
@@ -76,17 +76,16 @@ CreateThread(function()
                                 local type = GetPedType(entity)
                                 if type == 4 then
                                     if Citizen.InvokeNative(0x8DE41E9902E85756, entity) then -- press prompt
-                                        RSGCore.Functions.TriggerCallback('hud:server:getoutlawstatus', function(result)
-                                            if Config.LawAlertActive then
-                                                local random = math.random(100)
-                                                if random <= Config.LawAlertChance then
-                                                    local coords = GetEntityCoords(cache.ped)
-                                                    TriggerEvent('rsg-lawman:client:lawmanAlert', coords, locale('cl_lang_1'))
-                                                end
+                                        if Config.LawAlertActive then
+                                            local random = math.random(100)
+                                            if random <= Config.LawAlertChance then
+                                                local coords = GetEntityCoords(cache.ped)
+                                                TriggerEvent('rsg-lawman:client:lawmanAlert', coords, locale('cl_lang_1'))
                                             end
-                                            outlawstatus = result[1].outlawstatus
-                                            TriggerServerEvent('rex-lootnpc:server:givereward', outlawstatus)
-                                        end)
+                                        end
+                                        -- Send NPC network ID to server for validation
+                                        local npcNetId = NetworkGetNetworkIdFromEntity(entity)
+                                        TriggerServerEvent('rex-lootnpc:server:givereward', npcNetId)
                                     end
                                 end
                             end
