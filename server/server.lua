@@ -31,6 +31,7 @@ end
 ---------------------------------
 local lootCooldowns = {} -- Track player cooldowns
 local lootedNPCs = {} -- Track looted NPCs to prevent duplicates
+local processingLoots = {} -- Track in-progress loot requests to prevent race conditions
 
 -- Clean up old looted NPCs every 5 minutes
 CreateThread(function()
@@ -38,6 +39,13 @@ CreateThread(function()
         Wait(300000)
         lootedNPCs = {}
     end
+end)
+
+-- Clean up disconnected player cooldowns
+AddEventHandler('playerDropped', function()
+    local src = source
+    lootCooldowns[src] = nil
+    processingLoots[src] = nil
 end)
 
 ---------------------------------
@@ -52,16 +60,53 @@ local function SetCooldown(src)
     lootCooldowns[src] = GetGameTimer()
 end
 
-local function ClampOutlawStatus(status)
-    return math.max(Config.MinOutlawStatus, math.min(Config.MaxOutlawStatus, status))
-end
-
 local function MarkNPCAsLooted(npcId)
     lootedNPCs[npcId] = true
 end
 
 local function IsNPCLooted(npcId)
     return lootedNPCs[npcId] == true
+end
+
+local function IsProcessingLoot(src)
+    return processingLoots[src] == true
+end
+
+local function SetProcessingLoot(src, state)
+    processingLoots[src] = state
+end
+
+local function ValidateNPC(npcNetId, playerCoords)
+    if not npcNetId or npcNetId == 0 then return false end
+    
+    local npcEntity = NetworkGetEntityFromNetworkId(npcNetId)
+    if not npcEntity or npcEntity == 0 or not DoesEntityExist(npcEntity) then
+        return false
+    end
+    
+    -- Verify it's actually a ped (NPC)
+    if GetEntityType(npcEntity) ~= 1 then -- 1 = ped
+        return false
+    end
+    
+    -- Verify it's a human NPC (ped type 4)
+    if GetPedType(npcEntity) ~= 4 then
+        return false
+    end
+    
+    -- Verify NPC is dead
+    if not IsEntityDead(npcEntity) then
+        return false
+    end
+    
+    -- Distance check (prevent remote looting)
+    local npcCoords = GetEntityCoords(npcEntity)
+    local distance = #(playerCoords - npcCoords)
+    if distance > 5.0 then -- Max loot distance 5 units
+        return false
+    end
+    
+    return true
 end
 
 ---------------------------------
@@ -77,10 +122,26 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
         return -- Silent fail to prevent notification spam
     end
     
+    -- Prevent race condition exploitation
+    if IsProcessingLoot(src) then
+        return
+    end
+    
     if not npcNetId then return end
     
     if IsNPCLooted(npcNetId) then
         return -- NPC already looted
+    end
+    
+    -- Get player position for validation
+    local playerPed = GetPlayerPed(src)
+    if not playerPed or playerPed == 0 then return end
+    local playerCoords = GetEntityCoords(playerPed)
+    
+    -- Server-side entity validation (CRITICAL SECURITY CHECK)
+    if not ValidateNPC(npcNetId, playerCoords) then
+        print(string.format('[SECURITY] Player %s (src: %d) failed NPC validation', Player.PlayerData.citizenid, src))
+        return
     end
     
     -- Validate reward tables
@@ -89,23 +150,20 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
         return
     end
     
+    -- Mark as processing BEFORE any reward distribution
+    SetProcessingLoot(src, true)
     SetCooldown(src)
     MarkNPCAsLooted(npcNetId)
     
     local citizenid = Player.PlayerData.citizenid
     local firstname = Player.PlayerData.charinfo.firstname
     local lastname = Player.PlayerData.charinfo.lastname
-    
-    -- Get current outlaw status from database (don't trust client)
-    local result = MySQL.query.await('SELECT outlawstatus FROM players WHERE citizenid = ?', { citizenid })
-    if not result or not result[1] then return end
-    
-    local outlawstatus = result[1].outlawstatus or 0
+    -- Validate config values to prevent errors
+    local rareItemChance = math.max(0, math.min(100, Config.RareItemChance or 10))
     local rewardchance = math.random(100)
-    local isRare = rewardchance > (100 - Config.RareItemChance)
+    local isRare = rewardchance > (100 - rareItemChance)
     local moneyAmount = 0
     local itemName = ''
-    local newoutlawstatus = ClampOutlawStatus(outlawstatus + 1)
     
     if isRare and #Config.RareRewardItems > 0 then
         itemName = Config.RareRewardItems[math.random(#Config.RareRewardItems)]
@@ -114,7 +172,9 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
         
         -- money reward during looting
         if Config.EnableRareMoneyReward then
-            moneyAmount = math.random(Config.RareMinMoneyReward, Config.RareMaxMoneyReward)
+            local minReward = Config.RareMinMoneyReward or 10
+            local maxReward = math.max(minReward, Config.RareMaxMoneyReward or 100)
+            moneyAmount = math.random(minReward, maxReward)
             Player.Functions.AddMoney(Config.MoneyReward, moneyAmount)
         end
         
@@ -129,7 +189,6 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
                     { name = "Citizen ID", value = citizenid, inline = true },
                     { name = "Item", value = RSGCore.Shared.Items[itemName].label, inline = true },
                     { name = "Money Reward", value = "$"..moneyAmount..(" ("..Config.MoneyReward..")"), inline = true },
-                    { name = "Outlaw Status", value = newoutlawstatus.."/"..Config.MaxOutlawStatus, inline = true },
                 }
             )
         end
@@ -141,7 +200,9 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
         
         -- money reward during looting
         if Config.EnableCommonMoneyReward then
-            moneyAmount = math.random(Config.CommonMinMoneyReward, Config.CommonMaxMoneyReward)
+            local minReward = Config.CommonMinMoneyReward or 5
+            local maxReward = math.max(minReward, Config.CommonMaxMoneyReward or 50)
+            moneyAmount = math.random(minReward, maxReward)
             Player.Functions.AddMoney(Config.MoneyReward, moneyAmount)
         end
         
@@ -156,28 +217,9 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
                     { name = "Citizen ID", value = citizenid, inline = true },
                     { name = "Item", value = RSGCore.Shared.Items[itemName].label, inline = true },
                     { name = "Money Reward", value = "$"..moneyAmount..(" ("..Config.MoneyReward..")"), inline = true },
-                    { name = "Outlaw Status", value = newoutlawstatus.."/"..Config.MaxOutlawStatus, inline = true },
                 }
             )
         end
-    end
-    
-    -- Update outlaw status with bounds checking
-    MySQL.update('UPDATE players SET outlawstatus = ? WHERE citizenid = ?', { newoutlawstatus, citizenid })
-    
-    -- Discord log for high outlaw status
-    if Config.LogHighOutlawStatus and newoutlawstatus >= Config.HighOutlawThreshold and outlawstatus < Config.HighOutlawThreshold then
-        SendDiscordLog(
-            "⚠️ High Outlaw Status Alert",
-            string.format("**%s %s** has reached high outlaw status!", firstname, lastname),
-            15158332, -- Red color
-            {
-                { name = "Player", value = firstname.." "..lastname, inline = true },
-                { name = "Citizen ID", value = citizenid, inline = true },
-                { name = "Outlaw Status", value = newoutlawstatus.."/"..Config.MaxOutlawStatus, inline = true },
-                { name = "Threshold", value = Config.HighOutlawThreshold, inline = true },
-            }
-        )
     end
     
     -- Send feedback notification to player
@@ -191,24 +233,8 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(npcNetId)
         type = 'success',
         duration = 3000
     })
+    
+    -- Clear processing flag
+    SetProcessingLoot(src, false)
 end)
 
----------------------------------
--- reduce outlaw status
----------------------------------
-RegisterNetEvent('rex-lootnpc:server:reduceoutlawstaus', function()
-    local src = source
-    local Player = RSGCore.Functions.GetPlayer(src)
-    if not Player then return end
-    
-    local citizenid = Player.PlayerData.citizenid
-    
-    -- Get current status from database (don't trust client)
-    local result = MySQL.query.await('SELECT outlawstatus FROM players WHERE citizenid = ?', { citizenid })
-    if not result or not result[1] then return end
-    
-    local currentStatus = result[1].outlawstatus or 0
-    local newoutlawstatus = ClampOutlawStatus(currentStatus - Config.OutlawCooldownAmount)
-    
-    MySQL.update('UPDATE players SET outlawstatus = ? WHERE citizenid = ?', { newoutlawstatus, citizenid })
-end)

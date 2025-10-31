@@ -8,7 +8,7 @@ Config.UpdateInterval       = 1 -- every min
 Config.OutlawTriggerAmount  = 100 -- outlaw status that triggers hate
 Config.OutlawCooldownActive = true -- reduces outlaw status over time
 Config.OutlawCooldown       = 5 -- mins : reduces outlaw status every cycle
-Config.OutlawCooldownAmount = 5 -- amount of outlaw status to reduce
+Config.OutlawCooldownAmount = 1 -- amount of outlaw status to reduce
 Config.MinOutlawStatus      = 0 -- minimum outlaw status
 Config.MaxOutlawStatus      = 100 -- maximum outlaw status
 
