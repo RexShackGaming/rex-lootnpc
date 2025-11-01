@@ -24,14 +24,14 @@ Config.RareMaxMoneyReward = 50 -- max rare money reward amount
 -- common loot
 -------------------------------
 Config.CommonRewardItems = {
-    'bread'
+    'bread' -- example
 }
 
 -------------------------------
 -- rare loot
 -------------------------------
 Config.RareRewardItems = {
-    'water'
+    'water' -- example
 }
 
 -------------------------------
