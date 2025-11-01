@@ -1,3 +1,5 @@
+local RSGCore = exports['rsg-core']:GetCoreObject()
+
 local function SendDiscordWebhook(playerName, citizenid, itemName, isRareItem, coords, outlawStatus)
     if not Config.EnableDiscordWebhook or not Config.DiscordWebhookURL or Config.DiscordWebhookURL == 'YOUR_WEBHOOK_URL_HERE' then
         return
@@ -29,7 +31,7 @@ local function SendDiscordWebhook(playerName, citizenid, itemName, isRareItem, c
                 },
                 {
                     name = "📦 Item Received",
-                    value = string.format("%s %s", itemType, itemName),
+                    value = string.format("%s %s", itemType, RSGCore.Shared.Items[itemName].label),
                     inline = true
                 },
                 {
@@ -57,7 +59,7 @@ local function SendDiscordWebhook(playerName, citizenid, itemName, isRareItem, c
     }
     
     PerformHttpRequest(Config.DiscordWebhookURL, function(err, text, headers) 
-        if err ~= 200 then
+        if err ~= 200 and err ~= 204 then
             print("^1[rex-lootnpc] Discord webhook failed with error: " .. tostring(err) .. "^0")
         end
     end, 'POST', json.encode(payload), { ['Content-Type'] = 'application/json' })
