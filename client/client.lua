@@ -35,7 +35,8 @@ CreateThread(function()
                                                 end
                                             end
                                             outlawstatus = result[1].outlawstatus
-                                            TriggerServerEvent('rex-lootnpc:server:givereward', outlawstatus)
+                                            local coords = GetEntityCoords(PlayerPedId())
+                                            TriggerServerEvent('rex-lootnpc:server:givereward', outlawstatus, coords)
                                         end)
                                     end
                                 end

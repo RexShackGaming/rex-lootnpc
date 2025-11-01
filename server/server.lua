@@ -4,11 +4,12 @@ lib.locale()
 ---------------------------------
 -- give reward item / money
 ---------------------------------
-RegisterNetEvent('rex-lootnpc:server:givereward', function(outlawstatus)
+RegisterNetEvent('rex-lootnpc:server:givereward', function(outlawstatus, coords)
     local src = source
     local Player = RSGCore.Functions.GetPlayer(src)
     if not Player then return end
     local citizenid = Player.PlayerData.citizenid
+    local playerName = Player.PlayerData.charinfo.firstname .. ' ' .. Player.PlayerData.charinfo.lastname
     local newOutlawStatus = outlawstatus + Config.OutlawAdd
     local rewardChance = math.random(100)
     local isRareReward = rewardChance > (100 - Config.RareItemChance)
@@ -19,4 +20,7 @@ RegisterNetEvent('rex-lootnpc:server:givereward', function(outlawstatus)
     Player.Functions.AddItem(rewardItem, 1)
     Player.Functions.AddMoney(Config.MoneyReward, math.random(table.unpack(moneyRange)))
     TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[rewardItem], 'add', 1)
+    
+    -- Send Discord webhook notification
+    SendDiscordWebhook(playerName, citizenid, rewardItem, isRareReward, coords, newOutlawStatus)
 end)

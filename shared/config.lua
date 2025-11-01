@@ -33,3 +33,13 @@ Config.CommonRewardItems = {
 Config.RareRewardItems = {
     'water'
 }
+
+-------------------------------
+-- discord webhook settings
+-------------------------------
+Config.EnableDiscordWebhook = true -- toggle discord webhook notifications
+Config.DiscordWebhookURL = 'YOUR_WEBHOOK_URL_HERE' -- your discord webhook URL
+Config.DiscordBotName = 'Loot NPC Logger' -- name displayed in discord
+Config.DiscordAvatar = 'https://i.imgur.com/YourAvatarURL.png' -- avatar URL (optional)
+Config.DiscordColor = 16711680 -- embed color (decimal) - default is red
+Config.LogRareOnly = false -- if true, only logs rare item loots
